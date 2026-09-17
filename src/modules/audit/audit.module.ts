@@ -1,4 +1,15 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
-@Module({})
+import { AuditLogEntity } from './audit-log.entity';
+import { AuditController } from './audit.controller';
+import { AuditService } from './audit.service';
+
+@Global()
+@Module({
+  imports: [TypeOrmModule.forFeature([AuditLogEntity])],
+  controllers: [AuditController],
+  providers: [AuditService],
+  exports: [AuditService],
+})
 export class AuditModule {}

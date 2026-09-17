@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { validateEnvironment } from './common/config/env.validation';
@@ -8,6 +9,7 @@ import { HealthModule } from './health/health.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
+import { AuditInterceptor } from './modules/audit/audit.interceptor';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DevicesModule } from './modules/devices/devices.module';
@@ -39,6 +41,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     }),
     HealthModule,
     AuthModule,
+    AuditModule,
     OrganizationsModule,
     UsersModule,
     FleetsModule,
@@ -57,7 +60,12 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     NotificationsModule,
     AnalyticsModule,
     ReportsModule,
-    AuditModule,
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}
