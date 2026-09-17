@@ -73,3 +73,49 @@ jobs:
 
       - name: Verify migrations are idempotent
         run: npm run migration:run
+
+  docker-smoke:
+    needs: [validate, database-migrations]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare development environment
+        run: cp .env.example .env
+
+      - name: Start complete Docker stack
+        run: docker compose up --build -d
+
+      - name: Wait for backend readiness
+        shell: bash
+        run: |
+          for attempt in {1..36}; do
+            if curl --fail --silent http://localhost:3000/api/v1/health/ready > /dev/null; then
+              exit 0
+            fi
+            echo "Waiting for SafeFleet backend (${attempt}/36)..."
+            sleep 5
+          done
+          curl --fail --show-error http://localhost:3000/api/v1/health/ready
+
+      - name: Verify seeded owner login and protected endpoint
+        shell: bash
+        run: |
+          TOKEN=$(curl --fail --silent --show-error \
+            -H 'Content-Type: application/json' \
+            -d '{"organizationSlug":"safefleet-demo","email":"admin@safefleet.local","password":"ChangeMe123!"}' \
+            http://localhost:3000/api/v1/auth/login \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["accessToken"])')
+          test -n "$TOKEN"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $TOKEN" \
+            http://localhost:3000/api/v1/auth/me > /dev/null
+
+      - name: Show Docker logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop Docker stack
+        if: always()
+        run: docker compose down -v
