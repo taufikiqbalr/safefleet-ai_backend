@@ -5,6 +5,8 @@ import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { AuthenticatedDevice } from '../../common/auth/authenticated-device.interface';
 import { SafetyEventType } from '../../common/enums/domain.enums';
 import { DevicesService } from '../devices/devices.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { RiskService } from '../risk/risk.service';
 import { SafetyEventEntity } from '../safety-events/safety-event.entity';
 import { TripEntity } from '../trips/trip.entity';
 import { DrowsinessEventDetailEntity } from './drowsiness-event-detail.entity';
@@ -21,6 +23,8 @@ export class DrowsinessService {
     @InjectRepository(TripEntity)
     private readonly trips: Repository<TripEntity>,
     private readonly devicesService: DevicesService,
+    private readonly riskService: RiskService,
+    private readonly realtime: RealtimeService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -83,6 +87,7 @@ export class DrowsinessService {
       where: { deviceId: device.deviceId, clientEventId: dto.clientEventId },
     });
     if (existing) {
+      await this.processIntelligence(existing);
       return { clientEventId: dto.clientEventId, status: 'DUPLICATE' as const, id: existing.id };
     }
 
@@ -134,12 +139,14 @@ export class DrowsinessService {
         return savedEvent;
       });
 
+      await this.processIntelligence(safetyEvent);
       return { clientEventId: dto.clientEventId, status: 'ACCEPTED' as const, id: safetyEvent.id };
     } catch (error) {
       if (this.isUniqueViolation(error)) {
         const duplicate = await this.safetyEvents.findOne({
           where: { deviceId: device.deviceId, clientEventId: dto.clientEventId },
         });
+        if (duplicate) await this.processIntelligence(duplicate);
         return {
           clientEventId: dto.clientEventId,
           status: 'DUPLICATE' as const,
@@ -148,6 +155,11 @@ export class DrowsinessService {
       }
       throw error;
     }
+  }
+
+  private async processIntelligence(event: SafetyEventEntity): Promise<void> {
+    this.realtime.publishOrganization(event.organizationId, 'safety.event.created', event);
+    await this.riskService.processSafetyEvent(event);
   }
 
   private async resolveContext(device: AuthenticatedDevice, tripId?: string) {
