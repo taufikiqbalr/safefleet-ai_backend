@@ -19,14 +19,14 @@ class EnvironmentVariables {
   @IsInt()
   @Min(1)
   @Max(65535)
-  PORT = 3000;
+  PORT = 6100;
 
   @IsString()
   @IsNotEmpty()
   API_PREFIX = 'api/v1';
 
   @IsString()
-  CORS_ORIGINS = 'http://localhost:3001';
+  CORS_ORIGINS = 'http://localhost:6200';
 
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
@@ -40,7 +40,7 @@ class EnvironmentVariables {
   @IsInt()
   @Min(1)
   @Max(65535)
-  DATABASE_PORT = 5432;
+  DATABASE_PORT = 6543;
 
   @IsString()
   @IsNotEmpty()

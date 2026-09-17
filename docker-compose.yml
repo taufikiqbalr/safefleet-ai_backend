@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-safefleet_dev}
       POSTGRES_DB: ${DATABASE_NAME:-safefleet}
     ports:
-      - "${DATABASE_PORT:-5432}:5432"
+      - "${DATABASE_PORT:-6543}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -72,8 +72,9 @@ services:
     environment:
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
+      PORT: ${PORT:-6100}
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-6100}:${PORT:-6100}"
     volumes:
       - .:/app
       - /app/node_modules
@@ -86,7 +87,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3000/api/v1/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+          "fetch('http://localhost:6100/api/v1/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
         ]
       interval: 10s
       timeout: 5s

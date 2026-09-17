@@ -43,7 +43,7 @@ jobs:
           POSTGRES_PASSWORD: safefleet_ci
           POSTGRES_DB: safefleet
         ports:
-          - 5432:5432
+          - 6543:5432
         options: >-
           --health-cmd "pg_isready -U safefleet -d safefleet"
           --health-interval 5s
@@ -51,7 +51,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_HOST: localhost
-      DATABASE_PORT: 5432
+      DATABASE_PORT: 6543
       DATABASE_USER: safefleet
       DATABASE_PASSWORD: safefleet_ci
       DATABASE_NAME: safefleet
@@ -91,13 +91,13 @@ jobs:
         shell: bash
         run: |
           for attempt in {1..36}; do
-            if curl --fail --silent http://localhost:3000/api/v1/health/ready > /dev/null; then
+            if curl --fail --silent http://localhost:6100/api/v1/health/ready > /dev/null; then
               exit 0
             fi
             echo "Waiting for SafeFleet backend (${attempt}/36)..."
             sleep 5
           done
-          curl --fail --show-error http://localhost:3000/api/v1/health/ready
+          curl --fail --show-error http://localhost:6100/api/v1/health/ready
 
       - name: Verify seeded owner login and protected endpoint
         shell: bash
@@ -105,12 +105,12 @@ jobs:
           TOKEN=$(curl --fail --silent --show-error \
             -H 'Content-Type: application/json' \
             -d '{"organizationSlug":"safefleet-demo","email":"admin@safefleet.local","password":"ChangeMe123!"}' \
-            http://localhost:3000/api/v1/auth/login \
+            http://localhost:6100/api/v1/auth/login \
             | python3 -c 'import json,sys; print(json.load(sys.stdin)["accessToken"])')
           test -n "$TOKEN"
           curl --fail --silent --show-error \
             -H "Authorization: Bearer $TOKEN" \
-            http://localhost:3000/api/v1/auth/me > /dev/null
+            http://localhost:6100/api/v1/auth/me > /dev/null
 
       - name: Verify safety intelligence pipeline
         shell: bash

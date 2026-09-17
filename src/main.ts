@@ -28,7 +28,7 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(apiPrefix);
 
   const corsOrigins = config
-    .get<string>('CORS_ORIGINS', 'http://localhost:3001')
+    .get<string>('CORS_ORIGINS', 'http://localhost:6200')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -55,7 +55,7 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  const port = config.get<number>('PORT', 3000);
+  const port = config.get<number>('PORT', 6100);
   await app.listen(port, '0.0.0.0');
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-http://localhost:3000/api/v1}"
+BASE_URL="${BASE_URL:-http://localhost:6100/api/v1}"
 
 json_field() {
   local field="$1"
