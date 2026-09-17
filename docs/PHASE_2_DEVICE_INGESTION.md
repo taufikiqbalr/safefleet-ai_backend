@@ -159,8 +159,10 @@ docker compose up --build
 Swagger remains available at:
 
 ```text
-http://localhost:3000/docs
+http://localhost:6100/docs
 ```
+
+The host PostgreSQL endpoint is `localhost:6543`; Docker-internal services still use `postgres:5432`.
 
 ## Next phase
 
