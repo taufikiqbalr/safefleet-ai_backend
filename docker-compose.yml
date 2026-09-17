@@ -16,6 +16,29 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - safefleet
+
+  migrate:
+    build:
+      context: .
+      target: development
+    container_name: safefleet-migrate
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "migration:run"]
+    networks:
+      - safefleet
 
   backend:
     build:
@@ -34,8 +57,8 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -47,6 +70,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - safefleet
+
+networks:
+  safefleet:
+    name: safefleet-network
 
 volumes:
   postgres_data:
+    name: safefleet-postgres-data
