@@ -13,6 +13,7 @@ import { AuditInterceptor } from './modules/audit/audit.interceptor';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { DeviceRuntimeModule } from './modules/device-runtime/device-runtime.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { DrowsinessModule } from './modules/drowsiness/drowsiness.module';
@@ -49,6 +50,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     DriversModule,
     VehiclesModule,
     DevicesModule,
+    DeviceRuntimeModule,
     AssignmentsModule,
     TripsModule,
     TelemetryModule,

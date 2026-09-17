@@ -3,7 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { toPaginatedResult } from '../../common/dto/pagination-query.dto';
-import { AssignmentStatus, DeviceStatus, DriverStatus, TripStatus, VehicleStatus } from '../../common/enums/domain.enums';
+import {
+  AssignmentStatus,
+  DeviceStatus,
+  DriverStatus,
+  TripStatus,
+  VehicleStatus,
+} from '../../common/enums/domain.enums';
 import { AssignmentEntity } from '../assignments/assignment.entity';
 import { DeviceEntity } from '../devices/device.entity';
 import { DriverEntity } from '../drivers/driver.entity';
@@ -116,8 +122,12 @@ export class TripsService {
     );
   }
 
-  async complete(organizationId: string, id: string): Promise<TripEntity> {
-    return this.finish(organizationId, id, TripStatus.COMPLETED);
+  async complete(
+    organizationId: string,
+    id: string,
+    endedAt?: string,
+  ): Promise<TripEntity> {
+    return this.finish(organizationId, id, TripStatus.COMPLETED, endedAt);
   }
 
   async cancel(organizationId: string, id: string): Promise<TripEntity> {
@@ -128,13 +138,14 @@ export class TripsService {
     organizationId: string,
     id: string,
     status: TripStatus.COMPLETED | TripStatus.CANCELLED,
+    endedAt?: string,
   ): Promise<TripEntity> {
     const trip = await this.getById(organizationId, id);
     if (trip.status !== TripStatus.ACTIVE) {
       throw new ConflictException('Only an active trip can be completed or cancelled');
     }
     trip.status = status;
-    trip.endedAt = new Date();
+    trip.endedAt = endedAt ? new Date(endedAt) : new Date();
     return this.trips.save(trip);
   }
 }
