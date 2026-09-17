@@ -1,16 +1,11 @@
-import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsDateString, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
-import { AlertStatus, RiskLevel } from '../../../common/enums/domain.enums';
 
-export class AlertQueryDto extends PaginationQueryDto {
+export class SensorQueryDto extends PaginationQueryDto {
   @IsOptional()
-  @IsEnum(AlertStatus)
-  status?: AlertStatus;
-
-  @IsOptional()
-  @IsEnum(RiskLevel)
-  severity?: RiskLevel;
+  @IsUUID()
+  deviceId?: string;
 
   @IsOptional()
   @IsUUID()
@@ -25,8 +20,9 @@ export class AlertQueryDto extends PaginationQueryDto {
   vehicleId?: string;
 
   @IsOptional()
-  @IsUUID()
-  assignedToUserId?: string;
+  @IsString()
+  @MaxLength(64)
+  sensorType?: string;
 
   @IsOptional()
   @IsDateString()

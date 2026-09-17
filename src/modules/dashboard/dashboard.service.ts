@@ -127,7 +127,9 @@ export class DashboardService {
           al.severity AS "alertSeverity",
           al.status AS "alertStatus",
           al.occurrence_count AS "alertOccurrenceCount",
-          al.last_event_at AS "alertLastEventAt"
+          al.last_event_at AS "alertLastEventAt",
+          al.assigned_to_user_id AS "alertAssignedToUserId",
+          assignee.full_name AS "alertAssignedToName"
         FROM trips t
         INNER JOIN drivers d ON d.id = t.driver_id
         INNER JOIN vehicles v ON v.id = t.vehicle_id
@@ -163,6 +165,7 @@ export class DashboardService {
           END DESC, a.last_event_at DESC
           LIMIT 1
         ) al ON true
+        LEFT JOIN users assignee ON assignee.id = al.assigned_to_user_id
         WHERE t.organization_id = $1
           AND t.status = 'ACTIVE'
           ${fleetFilter}
@@ -225,6 +228,9 @@ export class DashboardService {
           a.occurrence_count AS "occurrenceCount",
           a.first_event_at AS "firstEventAt",
           a.last_event_at AS "lastEventAt",
+          a.assigned_to_user_id AS "assignedToUserId",
+          a.assigned_at AS "assignedAt",
+          assignee.full_name AS "assignedToName",
           a.acknowledged_at AS "acknowledgedAt",
           a.created_at AS "createdAt",
           t.id AS "tripId",
@@ -243,6 +249,7 @@ export class DashboardService {
         LEFT JOIN drivers d ON d.id = a.driver_id
         LEFT JOIN vehicles v ON v.id = a.vehicle_id
         LEFT JOIN fleets f ON f.id = COALESCE(t.fleet_id, v.fleet_id)
+        LEFT JOIN users assignee ON assignee.id = a.assigned_to_user_id
         LEFT JOIN LATERAL (
           SELECT tp.latitude, tp.longitude, tp.captured_at
           FROM telemetry_points tp

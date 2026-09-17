@@ -53,6 +53,12 @@ export class AlertEntity {
   @Column({ name: 'last_event_at', type: 'timestamptz' })
   lastEventAt!: Date;
 
+  @Column({ name: 'assigned_to_user_id', type: 'uuid', nullable: true })
+  assignedToUserId!: string | null;
+
+  @Column({ name: 'assigned_at', type: 'timestamptz', nullable: true })
+  assignedAt!: Date | null;
+
   @Column({ name: 'acknowledged_by_user_id', type: 'uuid', nullable: true })
   acknowledgedByUserId!: string | null;
 

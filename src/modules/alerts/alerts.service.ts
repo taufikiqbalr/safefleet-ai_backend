@@ -3,14 +3,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
 import { toPaginatedResult } from '../../common/dto/pagination-query.dto';
-import { AlertStatus, RiskLevel } from '../../common/enums/domain.enums';
+import { AlertStatus, RiskLevel, UserStatus } from '../../common/enums/domain.enums';
 import { RealtimeService } from '../realtime/realtime.service';
 import { RiskSnapshotEntity } from '../risk/risk-snapshot.entity';
 import { SafetyEventEntity } from '../safety-events/safety-event.entity';
+import { UserEntity } from '../users/user.entity';
 import { AlertStatusHistoryEntity } from './alert-status-history.entity';
 import { AlertEntity } from './alert.entity';
 import { AlertActionDto } from './dto/alert-action.dto';
 import { AlertQueryDto } from './dto/alert-query.dto';
+import { AssignAlertDto } from './dto/assign-alert.dto';
 
 @Injectable()
 export class AlertsService {
@@ -19,6 +21,8 @@ export class AlertsService {
     private readonly alerts: Repository<AlertEntity>,
     @InjectRepository(AlertStatusHistoryEntity)
     private readonly history: Repository<AlertStatusHistoryEntity>,
+    @InjectRepository(UserEntity)
+    private readonly users: Repository<UserEntity>,
     private readonly realtime: RealtimeService,
   ) {}
 
@@ -31,6 +35,11 @@ export class AlertsService {
     if (query.tripId) qb.andWhere('alert.trip_id = :tripId', { tripId: query.tripId });
     if (query.driverId) qb.andWhere('alert.driver_id = :driverId', { driverId: query.driverId });
     if (query.vehicleId) qb.andWhere('alert.vehicle_id = :vehicleId', { vehicleId: query.vehicleId });
+    if (query.assignedToUserId) {
+      qb.andWhere('alert.assigned_to_user_id = :assignedToUserId', {
+        assignedToUserId: query.assignedToUserId,
+      });
+    }
     if (query.from) qb.andWhere('alert.created_at >= :from', { from: new Date(query.from) });
     if (query.to) qb.andWhere('alert.created_at <= :to', { to: new Date(query.to) });
     qb.orderBy('alert.created_at', 'DESC')
@@ -49,6 +58,32 @@ export class AlertsService {
   async getHistory(organizationId: string, alertId: string) {
     await this.getById(organizationId, alertId);
     return this.history.find({ where: { organizationId, alertId }, order: { createdAt: 'ASC' } });
+  }
+
+  async assign(organizationId: string, id: string, dto: AssignAlertDto): Promise<AlertEntity> {
+    const alert = await this.getById(organizationId, id);
+    if (alert.status === AlertStatus.RESOLVED) {
+      throw new ConflictException('Resolved alerts cannot be reassigned');
+    }
+
+    if (dto.userId) {
+      const user = await this.users.findOne({
+        where: { id: dto.userId, organizationId, status: UserStatus.ACTIVE },
+      });
+      if (!user) throw new NotFoundException('Active assignee not found in this organization');
+      alert.assignedToUserId = user.id;
+      alert.assignedAt = new Date();
+    } else {
+      alert.assignedToUserId = null;
+      alert.assignedAt = null;
+    }
+
+    const saved = await this.alerts.save(alert);
+    this.realtime.publishOrganization(organizationId, 'alert.updated', {
+      ...saved,
+      assignmentNote: dto.note?.trim() || null,
+    });
+    return saved;
   }
 
   async processRiskSnapshot(
@@ -98,6 +133,8 @@ export class AlertsService {
         occurrenceCount: 1,
         firstEventAt: event.capturedAt,
         lastEventAt: event.capturedAt,
+        assignedToUserId: null,
+        assignedAt: null,
         acknowledgedByUserId: null,
         acknowledgedAt: null,
         resolvedByUserId: null,

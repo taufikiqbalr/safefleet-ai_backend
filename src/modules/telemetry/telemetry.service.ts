@@ -5,6 +5,7 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { AuthenticatedDevice } from '../../common/auth/authenticated-device.interface';
 import { toPaginatedResult } from '../../common/dto/pagination-query.dto';
 import { DevicesService } from '../devices/devices.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { TripEntity } from '../trips/trip.entity';
 import { TelemetryBatchDto } from './dto/telemetry-batch.dto';
 import { TelemetryPointDto } from './dto/telemetry-point.dto';
@@ -19,6 +20,7 @@ export class TelemetryService {
     @InjectRepository(TripEntity)
     private readonly trips: Repository<TripEntity>,
     private readonly devicesService: DevicesService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async list(organizationId: string, query: TelemetryQueryDto) {
@@ -72,9 +74,20 @@ export class TelemetryService {
       modelVersion: latestModelVersion,
     });
 
+    const accepted = results.filter((item) => item.status === 'ACCEPTED').length;
+    if (accepted > 0) {
+      const latest = await this.telemetry.findOne({
+        where: { deviceId: device.deviceId },
+        order: { capturedAt: 'DESC' },
+      });
+      if (latest) {
+        this.realtime.publishOrganization(device.organizationId, 'telemetry.location.updated', latest);
+      }
+    }
+
     return {
       syncBatchId: dto.syncBatchId ?? null,
-      accepted: results.filter((item) => item.status === 'ACCEPTED').length,
+      accepted,
       duplicates: results.filter((item) => item.status === 'DUPLICATE').length,
       rejected: results.filter((item) => item.status === 'REJECTED').length,
       results,

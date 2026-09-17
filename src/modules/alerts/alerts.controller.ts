@@ -10,6 +10,7 @@ import { UserRole } from '../../common/enums/domain.enums';
 import { AlertsService } from './alerts.service';
 import { AlertActionDto } from './dto/alert-action.dto';
 import { AlertQueryDto } from './dto/alert-query.dto';
+import { AssignAlertDto } from './dto/assign-alert.dto';
 
 @ApiTags('alerts')
 @ApiBearerAuth()
@@ -31,6 +32,16 @@ export class AlertsController {
   @Get(':id/history')
   history(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.alertsService.getHistory(user.organizationId, id);
+  }
+
+  @Post(':id/assign')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.SUPERVISOR)
+  assign(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: AssignAlertDto,
+  ) {
+    return this.alertsService.assign(user.organizationId, id, dto);
   }
 
   @Post(':id/acknowledge')
