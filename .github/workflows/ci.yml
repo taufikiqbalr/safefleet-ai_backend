@@ -32,3 +32,44 @@ jobs:
 
       - name: Test
         run: npm run test:ci
+
+  database-migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: safefleet
+          POSTGRES_PASSWORD: safefleet_ci
+          POSTGRES_DB: safefleet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U safefleet -d safefleet"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USER: safefleet
+      DATABASE_PASSWORD: safefleet_ci
+      DATABASE_NAME: safefleet
+      DATABASE_SSL: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Apply database migrations
+        run: npm run migration:run
+
+      - name: Verify migrations are idempotent
+        run: npm run migration:run
