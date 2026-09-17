@@ -8,10 +8,12 @@ json_field() {
   python3 -c "import json,sys; print(json.load(sys.stdin)${field})"
 }
 
-TOKEN=$(curl --fail --silent --show-error \
+LOGIN=$(curl --fail --silent --show-error \
   -H 'Content-Type: application/json' \
   -d '{"organizationSlug":"safefleet-demo","email":"admin@safefleet.local","password":"ChangeMe123!"}' \
-  "$BASE_URL/auth/login" | json_field '["accessToken"]')
+  "$BASE_URL/auth/login")
+TOKEN=$(printf '%s' "$LOGIN" | json_field '["accessToken"]')
+USER_ID=$(printf '%s' "$LOGIN" | json_field '["user"]["id"]')
 
 AUTH=(-H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json')
 
@@ -48,13 +50,34 @@ TRIP=$(curl --fail --silent --show-error "${AUTH[@]}" \
   "$BASE_URL/trips/start")
 TRIP_ID=$(printf '%s' "$TRIP" | json_field '["id"]')
 
-CLIENT_EVENT_ID=$(python3 -c 'import uuid; print(uuid.uuid4())')
 CAPTURED_AT=$(python3 -c 'from datetime import datetime,timezone; print(datetime.now(timezone.utc).isoformat().replace("+00:00","Z"))')
+
+TELEMETRY_EVENT_ID=$(python3 -c 'import uuid; print(uuid.uuid4())')
+TELEMETRY=$(curl --fail --silent --show-error \
+  -H "X-SafeFleet-Device-Id: $DEVICE_ID" \
+  -H "X-SafeFleet-Device-Key: $DEVICE_KEY" \
+  -H 'Content-Type: application/json' \
+  -d "{\"points\":[{\"clientEventId\":\"$TELEMETRY_EVENT_ID\",\"capturedAt\":\"$CAPTURED_AT\",\"tripId\":\"$TRIP_ID\",\"latitude\":-6.2,\"longitude\":106.8,\"speedKph\":42.5,\"batteryPercent\":76,\"networkType\":\"4g\",\"appVersion\":\"ci\",\"modelVersion\":\"ci-model\"}]}" \
+  "$BASE_URL/device/telemetry/batch")
+TELEMETRY_ACCEPTED=$(printf '%s' "$TELEMETRY" | json_field '["accepted"]')
+test "$TELEMETRY_ACCEPTED" = "1"
+
+SENSOR_EVENT_ID=$(python3 -c 'import uuid; print(uuid.uuid4())')
+SENSOR=$(curl --fail --silent --show-error \
+  -H "X-SafeFleet-Device-Id: $DEVICE_ID" \
+  -H "X-SafeFleet-Device-Key: $DEVICE_KEY" \
+  -H 'Content-Type: application/json' \
+  -d "{\"readings\":[{\"clientEventId\":\"$SENSOR_EVENT_ID\",\"capturedAt\":\"$CAPTURED_AT\",\"tripId\":\"$TRIP_ID\",\"sensorId\":\"cabin-01\",\"sensorType\":\"CO\",\"value\":12.4,\"unit\":\"ppm\",\"sensorStatus\":\"OK\",\"latitude\":-6.2,\"longitude\":106.8}]}" \
+  "$BASE_URL/device/sensor-readings/batch")
+SENSOR_ACCEPTED=$(printf '%s' "$SENSOR" | json_field '["accepted"]')
+test "$SENSOR_ACCEPTED" = "1"
+
+CLIENT_EVENT_ID=$(python3 -c 'import uuid; print(uuid.uuid4())')
 INGEST=$(curl --fail --silent --show-error \
   -H "X-SafeFleet-Device-Id: $DEVICE_ID" \
   -H "X-SafeFleet-Device-Key: $DEVICE_KEY" \
   -H 'Content-Type: application/json' \
-  -d "{\"events\":[{\"clientEventId\":\"$CLIENT_EVENT_ID\",\"capturedAt\":\"$CAPTURED_AT\",\"tripId\":\"$TRIP_ID\",\"severity\":\"HIGH\",\"drowsinessScore\":0.8,\"eyeAspectRatio\":0.2,\"mouthAspectRatio\":0.5,\"perclosPercent\":35,\"eyeClosureDurationMs\":1600,\"localAlarmTriggered\":true,\"thresholdProfile\":\"ci-v1\",\"appVersion\":\"ci\",\"modelVersion\":\"ci-model\",\"inferenceLatencyMs\":30}]}" \
+  -d "{\"events\":[{\"clientEventId\":\"$CLIENT_EVENT_ID\",\"capturedAt\":\"$CAPTURED_AT\",\"tripId\":\"$TRIP_ID\",\"severity\":\"HIGH\",\"drowsinessScore\":0.8,\"eyeAspectRatio\":0.2,\"mouthAspectRatio\":0.5,\"perclosPercent\":35,\"eyeClosureDurationMs\":1600,\"localAlarmTriggered\":true,\"thresholdProfile\":\"ci-v1\",\"appVersion\":\"ci\",\"modelVersion\":\"ci-model\",\"inferenceLatencyMs\":30,\"latitude\":-6.2,\"longitude\":106.8}]}" \
   "$BASE_URL/device/drowsiness-events/batch")
 
 ACCEPTED=$(printf '%s' "$INGEST" | json_field '["accepted"]')
@@ -71,6 +94,58 @@ ALERTS=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
 ALERT_ID=$(printf '%s' "$ALERTS" | json_field '["items"][0]["id"]')
 ALERT_STATUS=$(printf '%s' "$ALERTS" | json_field '["items"][0]["status"]')
 test "$ALERT_STATUS" = "OPEN"
+
+ASSIGNED=$(curl --fail --silent --show-error "${AUTH[@]}" \
+  -d "{\"userId\":\"$USER_ID\",\"note\":\"CI assignment\"}" \
+  "$BASE_URL/alerts/$ALERT_ID/assign")
+ASSIGNED_USER_ID=$(printf '%s' "$ASSIGNED" | json_field '["assignedToUserId"]')
+test "$ASSIGNED_USER_ID" = "$USER_ID"
+
+SENSOR_HISTORY=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/sensor-readings?tripId=$TRIP_ID&sensorType=CO")
+SENSOR_TYPE=$(printf '%s' "$SENSOR_HISTORY" | json_field '["items"][0]["sensorType"]')
+test "$SENSOR_TYPE" = "CO"
+
+DASHBOARD_SUMMARY=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/dashboard/summary")
+ACTIVE_TRIPS=$(printf '%s' "$DASHBOARD_SUMMARY" | json_field '["activeTrips"]')
+ACTIVE_ALERTS=$(printf '%s' "$DASHBOARD_SUMMARY" | json_field '["activeAlerts"]')
+test "$ACTIVE_TRIPS" -ge 1
+test "$ACTIVE_ALERTS" -ge 1
+
+LIVE_FLEET=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/dashboard/live-fleet")
+LIVE_TRIP_ID=$(printf '%s' "$LIVE_FLEET" | json_field '["items"][0]["tripId"]')
+LIVE_LATITUDE=$(printf '%s' "$LIVE_FLEET" | json_field '["items"][0]["latitude"]')
+test "$LIVE_TRIP_ID" = "$TRIP_ID"
+test "$LIVE_LATITUDE" = "-6.2"
+
+DASHBOARD_ALERTS=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/dashboard/active-alerts")
+DASHBOARD_ALERT_ID=$(printf '%s' "$DASHBOARD_ALERTS" | json_field '["items"][0]["id"]')
+DASHBOARD_ASSIGNEE=$(printf '%s' "$DASHBOARD_ALERTS" | json_field '["items"][0]["assignedToUserId"]')
+test "$DASHBOARD_ALERT_ID" = "$ALERT_ID"
+test "$DASHBOARD_ASSIGNEE" = "$USER_ID"
+
+ANALYTICS_OVERVIEW=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/analytics/overview")
+ANALYTICS_EVENTS=$(printf '%s' "$ANALYTICS_OVERVIEW" | json_field '["events"]["totalEvents"]')
+test "$ANALYTICS_EVENTS" -ge 1
+
+ANALYTICS_MODELS=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/analytics/models")
+MODEL_VERSION=$(printf '%s' "$ANALYTICS_MODELS" | json_field '["items"][0]["modelVersion"]')
+test "$MODEL_VERSION" = "ci-model"
+
+ANALYTICS_LATENCY=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/analytics/latency")
+LATENCY_SAMPLES=$(printf '%s' "$ANALYTICS_LATENCY" | json_field '["ingestion"]["samples"]')
+test "$LATENCY_SAMPLES" -ge 1
+
+ANALYTICS_TRENDS=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/analytics/trends?bucket=hour")
+TREND_COUNT=$(printf '%s' "$ANALYTICS_TRENDS" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["items"]))')
+test "$TREND_COUNT" -ge 1
 
 curl --fail --silent --show-error "${AUTH[@]}" \
   -d '{"note":"CI acknowledgement"}' \
@@ -91,4 +166,4 @@ HISTORY=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
 HISTORY_COUNT=$(printf '%s' "$HISTORY" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
 test "$HISTORY_COUNT" -ge 3
 
-echo "SafeFleet safety intelligence smoke test passed"
+echo "SafeFleet Phase 4 frontend-ready smoke test passed"
