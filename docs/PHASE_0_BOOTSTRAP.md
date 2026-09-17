@@ -27,7 +27,7 @@ npm run migration:run
 npm run start:dev
 ```
 
-The API is available at `http://localhost:3000/api/v1` and Swagger at `http://localhost:3000/docs`.
+The API is available at `http://localhost:6100/api/v1` and Swagger at `http://localhost:6100/docs`. PostgreSQL is exposed to the host on `localhost:6543`; port `5432` is used only inside the Docker network by the PostgreSQL container.
 
 Health endpoints:
 
