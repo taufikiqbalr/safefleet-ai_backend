@@ -112,6 +112,10 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             http://localhost:3000/api/v1/auth/me > /dev/null
 
+      - name: Verify safety intelligence pipeline
+        shell: bash
+        run: bash scripts/ci/smoke-safety-intelligence.sh
+
       - name: Show Docker logs on failure
         if: failure()
         run: docker compose logs --no-color
