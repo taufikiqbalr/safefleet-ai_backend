@@ -224,14 +224,16 @@ docker compose up --build
 HTTP API / Swagger:
 
 ```text
-http://localhost:3000/docs
+http://localhost:6100/docs
 ```
 
 Socket.IO namespace:
 
 ```text
-http://localhost:3000/realtime
+http://localhost:6100/realtime
 ```
+
+PostgreSQL is exposed to the host on `localhost:6543`; `postgres:5432` remains the Docker-internal service address only.
 
 ## Database additions
 
