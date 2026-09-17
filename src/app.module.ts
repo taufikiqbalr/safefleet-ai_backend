@@ -12,6 +12,7 @@ import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { AuditInterceptor } from './modules/audit/audit.interceptor';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { DrowsinessModule } from './modules/drowsiness/drowsiness.module';
@@ -58,6 +59,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     AlertsModule,
     RealtimeModule,
     NotificationsModule,
+    DashboardModule,
     AnalyticsModule,
     ReportsModule,
   ],
