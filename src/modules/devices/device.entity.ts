@@ -51,6 +51,15 @@ export class DeviceEntity extends AppBaseEntity {
   @Column({ name: 'last_seen_at', type: 'timestamptz', nullable: true })
   lastSeenAt!: Date | null;
 
+  @Column({ name: 'api_key_hash', type: 'varchar', length: 255, nullable: true, select: false })
+  apiKeyHash!: string | null;
+
+  @Column({ name: 'api_key_hint', type: 'varchar', length: 16, nullable: true })
+  apiKeyHint!: string | null;
+
+  @Column({ name: 'api_key_issued_at', type: 'timestamptz', nullable: true })
+  apiKeyIssuedAt!: Date | null;
+
   @Column({ type: 'varchar', length: 32, default: DeviceStatus.ACTIVE })
   status!: DeviceStatus;
 }

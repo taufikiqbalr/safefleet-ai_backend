@@ -41,6 +41,12 @@ export class DevicesController {
     return this.devicesService.update(user.organizationId, id, dto);
   }
 
+  @Post(':id/credentials/rotate')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  rotateCredential(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.devicesService.rotateCredential(user.organizationId, id);
+  }
+
   @Post(':id/revoke')
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   revoke(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
