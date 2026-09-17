@@ -43,40 +43,58 @@ DEVICE_ID=$(printf '%s' "$DEVICE" | json_field '["id"]')
 CREDENTIAL=$(curl --fail --silent --show-error "${AUTH[@]}" -X POST \
   "$BASE_URL/devices/$DEVICE_ID/credentials/rotate")
 DEVICE_KEY=$(printf '%s' "$CREDENTIAL" | json_field '["deviceKey"]')
+DEVICE_AUTH=(
+  -H "X-SafeFleet-Device-Id: $DEVICE_ID"
+  -H "X-SafeFleet-Device-Key: $DEVICE_KEY"
+  -H 'Content-Type: application/json'
+)
+
+CONTEXT_BEFORE=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
+  "$BASE_URL/device/context")
+CONTEXT_DEVICE_ID=$(printf '%s' "$CONTEXT_BEFORE" | json_field '["device"]["id"]')
+CONTEXT_DRIVER_ID=$(printf '%s' "$CONTEXT_BEFORE" | json_field '["driver"]["id"]')
+CONTEXT_VEHICLE_ID=$(printf '%s' "$CONTEXT_BEFORE" | json_field '["vehicle"]["id"]')
+CAN_START=$(printf '%s' "$CONTEXT_BEFORE" | json_field '["canStartTrip"]')
+test "$CONTEXT_DEVICE_ID" = "$DEVICE_ID"
+test "$CONTEXT_DRIVER_ID" = "$DRIVER_ID"
+test "$CONTEXT_VEHICLE_ID" = "$VEHICLE_ID"
+test "$CAN_START" = "True"
 
 CLIENT_TRIP_ID=$(python3 -c 'import uuid; print(uuid.uuid4())')
-TRIP=$(curl --fail --silent --show-error "${AUTH[@]}" \
-  -d "{\"driverId\":\"$DRIVER_ID\",\"vehicleId\":\"$VEHICLE_ID\",\"deviceId\":\"$DEVICE_ID\",\"clientTripId\":\"$CLIENT_TRIP_ID\"}" \
-  "$BASE_URL/trips/start")
+TRIP=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
+  -d "{\"clientTripId\":\"$CLIENT_TRIP_ID\"}" \
+  "$BASE_URL/device/trips/start")
 TRIP_ID=$(printf '%s' "$TRIP" | json_field '["id"]')
+
+TRIP_RETRY=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
+  -d "{\"clientTripId\":\"$CLIENT_TRIP_ID\"}" \
+  "$BASE_URL/device/trips/start")
+TRIP_RETRY_ID=$(printf '%s' "$TRIP_RETRY" | json_field '["id"]')
+test "$TRIP_RETRY_ID" = "$TRIP_ID"
+
+CONTEXT_ACTIVE=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
+  "$BASE_URL/device/context")
+ACTIVE_CONTEXT_TRIP=$(printf '%s' "$CONTEXT_ACTIVE" | json_field '["activeTrip"]["id"]')
+test "$ACTIVE_CONTEXT_TRIP" = "$TRIP_ID"
 
 CAPTURED_AT=$(python3 -c 'from datetime import datetime,timezone; print(datetime.now(timezone.utc).isoformat().replace("+00:00","Z"))')
 
 TELEMETRY_EVENT_ID=$(python3 -c 'import uuid; print(uuid.uuid4())')
-TELEMETRY=$(curl --fail --silent --show-error \
-  -H "X-SafeFleet-Device-Id: $DEVICE_ID" \
-  -H "X-SafeFleet-Device-Key: $DEVICE_KEY" \
-  -H 'Content-Type: application/json' \
+TELEMETRY=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
   -d "{\"points\":[{\"clientEventId\":\"$TELEMETRY_EVENT_ID\",\"capturedAt\":\"$CAPTURED_AT\",\"tripId\":\"$TRIP_ID\",\"latitude\":-6.2,\"longitude\":106.8,\"speedKph\":42.5,\"batteryPercent\":76,\"networkType\":\"4g\",\"appVersion\":\"ci\",\"modelVersion\":\"ci-model\"}]}" \
   "$BASE_URL/device/telemetry/batch")
 TELEMETRY_ACCEPTED=$(printf '%s' "$TELEMETRY" | json_field '["accepted"]')
 test "$TELEMETRY_ACCEPTED" = "1"
 
 SENSOR_EVENT_ID=$(python3 -c 'import uuid; print(uuid.uuid4())')
-SENSOR=$(curl --fail --silent --show-error \
-  -H "X-SafeFleet-Device-Id: $DEVICE_ID" \
-  -H "X-SafeFleet-Device-Key: $DEVICE_KEY" \
-  -H 'Content-Type: application/json' \
+SENSOR=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
   -d "{\"readings\":[{\"clientEventId\":\"$SENSOR_EVENT_ID\",\"capturedAt\":\"$CAPTURED_AT\",\"tripId\":\"$TRIP_ID\",\"sensorId\":\"cabin-01\",\"sensorType\":\"CO\",\"value\":12.4,\"unit\":\"ppm\",\"sensorStatus\":\"OK\",\"latitude\":-6.2,\"longitude\":106.8}]}" \
   "$BASE_URL/device/sensor-readings/batch")
 SENSOR_ACCEPTED=$(printf '%s' "$SENSOR" | json_field '["accepted"]')
 test "$SENSOR_ACCEPTED" = "1"
 
 CLIENT_EVENT_ID=$(python3 -c 'import uuid; print(uuid.uuid4())')
-INGEST=$(curl --fail --silent --show-error \
-  -H "X-SafeFleet-Device-Id: $DEVICE_ID" \
-  -H "X-SafeFleet-Device-Key: $DEVICE_KEY" \
-  -H 'Content-Type: application/json' \
+INGEST=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
   -d "{\"events\":[{\"clientEventId\":\"$CLIENT_EVENT_ID\",\"capturedAt\":\"$CAPTURED_AT\",\"tripId\":\"$TRIP_ID\",\"severity\":\"HIGH\",\"drowsinessScore\":0.8,\"eyeAspectRatio\":0.2,\"mouthAspectRatio\":0.5,\"perclosPercent\":35,\"eyeClosureDurationMs\":1600,\"localAlarmTriggered\":true,\"thresholdProfile\":\"ci-v1\",\"appVersion\":\"ci\",\"modelVersion\":\"ci-model\",\"inferenceLatencyMs\":30,\"latitude\":-6.2,\"longitude\":106.8}]}" \
   "$BASE_URL/device/drowsiness-events/batch")
 
@@ -166,4 +184,16 @@ HISTORY=$(curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" \
 HISTORY_COUNT=$(printf '%s' "$HISTORY" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
 test "$HISTORY_COUNT" -ge 3
 
-echo "SafeFleet Phase 4 frontend-ready smoke test passed"
+ENDED_AT=$(python3 -c 'from datetime import datetime,timezone; print(datetime.now(timezone.utc).isoformat().replace("+00:00","Z"))')
+COMPLETED=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
+  -d "{\"endedAt\":\"$ENDED_AT\"}" \
+  "$BASE_URL/device/trips/$TRIP_ID/complete")
+COMPLETED_STATUS=$(printf '%s' "$COMPLETED" | json_field '["status"]')
+test "$COMPLETED_STATUS" = "COMPLETED"
+
+CONTEXT_AFTER=$(curl --fail --silent --show-error "${DEVICE_AUTH[@]}" \
+  "$BASE_URL/device/context")
+ACTIVE_AFTER=$(printf '%s' "$CONTEXT_AFTER" | python3 -c 'import json,sys; print(json.load(sys.stdin)["activeTrip"] is None)')
+test "$ACTIVE_AFTER" = "True"
+
+echo "SafeFleet Phase 4B mobile runtime smoke test passed"
