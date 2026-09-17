@@ -51,3 +51,17 @@ export enum TripStatus {
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
+
+export enum SafetyEventType {
+  DROWSINESS = 'DROWSINESS',
+  CABIN_GAS = 'CABIN_GAS',
+  DRIVER_DISTRACTION = 'DRIVER_DISTRACTION',
+  DEVICE_HEALTH = 'DEVICE_HEALTH',
+}
+
+export enum SafetySeverity {
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL',
+}
