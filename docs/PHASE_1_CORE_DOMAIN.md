@@ -17,7 +17,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-No host PostgreSQL installation is required. The API remains available on `http://localhost:3000`, while PostgreSQL data is persisted in the named `safefleet-postgres-data` volume.
+No host PostgreSQL installation is required. The API remains available on `http://localhost:6100`, while PostgreSQL is exposed to the host on `localhost:6543` and data is persisted in the named `safefleet-postgres-data` volume. Docker services continue to address PostgreSQL internally as `postgres:5432`; that internal port is not the host binding.
 
 Useful commands:
 
