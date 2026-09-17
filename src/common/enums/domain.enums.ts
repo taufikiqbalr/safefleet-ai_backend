@@ -65,3 +65,29 @@ export enum SafetySeverity {
   HIGH = 'HIGH',
   CRITICAL = 'CRITICAL',
 }
+
+export enum RiskPolicyStatus {
+  DRAFT = 'DRAFT',
+  ACTIVE = 'ACTIVE',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export enum RiskLevel {
+  NORMAL = 'NORMAL',
+  CAUTION = 'CAUTION',
+  WARNING = 'WARNING',
+  CRITICAL = 'CRITICAL',
+}
+
+export enum AlertStatus {
+  OPEN = 'OPEN',
+  ACKNOWLEDGED = 'ACKNOWLEDGED',
+  ESCALATED = 'ESCALATED',
+  RESOLVED = 'RESOLVED',
+}
+
+export enum SafetyEventFeedbackClassification {
+  CONFIRMED = 'CONFIRMED',
+  FALSE_ALARM = 'FALSE_ALARM',
+  UNCERTAIN = 'UNCERTAIN',
+}
