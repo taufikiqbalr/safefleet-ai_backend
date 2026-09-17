@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { toPaginatedResult } from '../../common/dto/pagination-query.dto';
+import { RealtimeService } from '../realtime/realtime.service';
+import { CreateSafetyEventFeedbackDto } from './dto/create-safety-event-feedback.dto';
 import { SafetyEventQueryDto } from './dto/safety-event-query.dto';
+import { SafetyEventFeedbackEntity } from './safety-event-feedback.entity';
 import { SafetyEventEntity } from './safety-event.entity';
 
 @Injectable()
@@ -11,6 +14,9 @@ export class SafetyEventsService {
   constructor(
     @InjectRepository(SafetyEventEntity)
     private readonly safetyEvents: Repository<SafetyEventEntity>,
+    @InjectRepository(SafetyEventFeedbackEntity)
+    private readonly feedback: Repository<SafetyEventFeedbackEntity>,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async list(organizationId: string, query: SafetyEventQueryDto) {
@@ -39,5 +45,33 @@ export class SafetyEventsService {
     const event = await this.safetyEvents.findOne({ where: { id, organizationId } });
     if (!event) throw new NotFoundException('Safety event not found');
     return event;
+  }
+
+  async addFeedback(
+    organizationId: string,
+    safetyEventId: string,
+    reviewerUserId: string,
+    dto: CreateSafetyEventFeedbackDto,
+  ): Promise<SafetyEventFeedbackEntity> {
+    await this.getById(organizationId, safetyEventId);
+    const item = await this.feedback.save(
+      this.feedback.create({
+        organizationId,
+        safetyEventId,
+        reviewerUserId,
+        classification: dto.classification,
+        reason: dto.reason?.trim() || null,
+      }),
+    );
+    this.realtime.publishOrganization(organizationId, 'safety.event.feedback.created', item);
+    return item;
+  }
+
+  async listFeedback(organizationId: string, safetyEventId: string) {
+    await this.getById(organizationId, safetyEventId);
+    return this.feedback.find({
+      where: { organizationId, safetyEventId },
+      order: { createdAt: 'DESC' },
+    });
   }
 }
