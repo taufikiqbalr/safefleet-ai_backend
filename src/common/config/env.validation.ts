@@ -1,5 +1,15 @@
 import { plainToInstance, Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsNotEmpty, IsString, Max, Min, validateSync } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+  validateSync,
+} from 'class-validator';
 
 class EnvironmentVariables {
   @IsIn(['development', 'test', 'production'])
@@ -49,8 +59,17 @@ class EnvironmentVariables {
   DATABASE_SSL = false;
 
   @IsString()
+  @MinLength(32)
+  JWT_SECRET!: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(300)
+  JWT_EXPIRES_SECONDS = 28800;
+
+  @IsString()
   @IsNotEmpty()
-  APP_VERSION = '0.1.0';
+  APP_VERSION = '0.2.0';
 }
 
 export function validateEnvironment(config: Record<string, unknown>): EnvironmentVariables {

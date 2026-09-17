@@ -40,6 +40,27 @@ services:
     networks:
       - safefleet
 
+  seed:
+    build:
+      context: .
+      target: development
+    container_name: safefleet-seed
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["npm", "run", "seed:dev"]
+    networks:
+      - safefleet
+
   backend:
     build:
       context: .
@@ -57,7 +78,7 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      migrate:
+      seed:
         condition: service_completed_successfully
     healthcheck:
       test:
